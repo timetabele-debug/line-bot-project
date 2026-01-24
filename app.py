@@ -313,32 +313,48 @@ def handle_message(event):
 
     # --- 時間割 ---
     if text == "時間割":
-        if user_id not in users or "class" not in users[user_id]:
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text="個人情報の登録をしてください。")
-            )
-            return
+        if (
+            user_id not in users
+            or "school" not in users[user_id]
+            or "class" not in users[user_id]
+        ):
+            return  # ← 何も返さない
+
         flex = button_flex("曜日を選択", ["月", "火", "水", "木", "金"])
-        line_bot_api.reply_message(event.reply_token, FlexSendMessage("曜日選択", flex))
+        line_bot_api.reply_message(
+            event.reply_token,
+            FlexSendMessage("曜日選択", flex)
+        )
         return
 
     # 曜日選択
     if text in ["月", "火", "水", "木", "金"]:
         if user_id not in users or "class" not in users[user_id]:
-            return
+            return  # ← エラー出さず無言
+
         school = users[user_id]["school"]
         cls = users[user_id]["class"]
-        
-        lessons = TIMETABLE.get(school, {}).get(cls, {}).get(text)
 
+        lessons = (
+            TIMETABLE
+            .get(school, {})
+            .get(cls, {})
+            .get(text)
+        )
+        
         if not lessons:
-            return
+            return  # ← ここも無言でOK
+
         msg = f"{cls} {text}曜\n"
         for i, s in enumerate(lessons, 1):
             msg += f"{i}限：{s}\n"
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg.strip()))
+
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=msg.strip())
+        )
         return
+
 
 # ===== 起動 =====
 import os
