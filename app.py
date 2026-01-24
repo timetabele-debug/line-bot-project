@@ -316,23 +316,11 @@ def handle_message(event):
             save_users(users)
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text="登録が完了しました。\n「時間割」をご利用ください。")
+                TextSendMessage(
+                    text="登録が完了しました。\n「時間割」をご利用ください。"
+                )
             )
             return
-
-
-    if (
-        school in SCHOOLS
-        and grade in SCHOOLS[school]
-        and text in SCHOOLS[school][grade]
-    ):
-        users[user_id]["class"] = text
-        save_users(users)
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text="登録が完了しました。\n「時間割」をご利用ください。")
-        )
-    return
 
     # 曜日選択
     if text in ["月", "火", "水", "木", "金"]:
