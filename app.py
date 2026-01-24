@@ -255,6 +255,22 @@ def handle_message(event):
     user_id = event.source.user_id
     users = load_users()
 
+    # --- 時間割 ---
+    if text == "時間割":
+        if (
+            user_id not in users
+            or "school" not in users[user_id]
+            or "class" not in users[user_id]
+        ):
+            return  # ← 何も返さない
+
+        flex = button_flex("曜日を選択", ["月", "火", "水", "木", "金"])
+        line_bot_api.reply_message(
+            event.reply_token,
+            FlexSendMessage("曜日選択", flex)
+        )
+        return
+    
     # --- 個人情報登録 ---
     if text == "個人情報登録":
         flex = button_flex("学校を選択", list(SCHOOLS.keys()))
@@ -290,12 +306,20 @@ def handle_message(event):
     ):
         school = users[user_id]["school"]
         grade = users[user_id]["grade"]
-    else:
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text="先に学校・学年を登録してください。")
-        )
-        return
+
+        if (
+            school in SCHOOLS
+            and grade in SCHOOLS[school]
+            and text in SCHOOLS[school][grade]
+        ):
+            users[user_id]["class"] = text
+            save_users(users)
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="登録が完了しました。\n「時間割」をご利用ください。")
+            )
+            return
+
 
     if (
         school in SCHOOLS
@@ -307,30 +331,13 @@ def handle_message(event):
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text="登録が完了しました。\n「時間割」をご利用ください。")
-    )
-    return
-
-
-    # --- 時間割 ---
-    if text == "時間割":
-        if (
-            user_id not in users
-            or "school" not in users[user_id]
-            or "class" not in users[user_id]
-        ):
-            return  # ← 何も返さない
-
-        flex = button_flex("曜日を選択", ["月", "火", "水", "木", "金"])
-        line_bot_api.reply_message(
-            event.reply_token,
-            FlexSendMessage("曜日選択", flex)
         )
-        return
+    return
 
     # 曜日選択
     if text in ["月", "火", "水", "木", "金"]:
         if user_id not in users or "class" not in users[user_id]:
-            return  # ← エラー出さず無言
+            return  # 無言
 
         school = users[user_id]["school"]
         cls = users[user_id]["class"]
@@ -341,9 +348,9 @@ def handle_message(event):
             .get(cls, {})
             .get(text)
         )
-        
+
         if not lessons:
-            return  # ← ここも無言でOK
+            return  # 無言
 
         msg = f"{cls} {text}曜\n"
         for i, s in enumerate(lessons, 1):
@@ -354,6 +361,7 @@ def handle_message(event):
             TextSendMessage(text=msg.strip())
         )
         return
+
 
 
 # ===== 起動 =====
