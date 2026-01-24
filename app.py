@@ -283,17 +283,32 @@ def handle_message(event):
             return
 
     # クラス選択
-    if user_id in users and "school" in users and "grade" in users[user_id]:
+    if (
+        user_id in users
+        and "school" in users[user_id]
+        and "grade" in users[user_id]
+    ):
         school = users[user_id]["school"]
         grade = users[user_id]["grade"]
-    if text in SCHOOLS[school][grade]:
+    else:
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="先に学校・学年を登録してください。")
+        )
+        return
+
+    if (
+        school in SCHOOLS
+        and grade in SCHOOLS[school]
+        and text in SCHOOLS[school][grade]
+    ):
         users[user_id]["class"] = text
         save_users(users)
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text="登録が完了しました。\n「時間割」をご利用ください。")
-        )
-        return
+    )
+    return
 
 
     # --- 時間割 ---
