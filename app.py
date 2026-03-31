@@ -9,7 +9,7 @@ CHANNEL_SECRET = "e5fd1ba729102842beaa4f76b075c7c8"
 
 # ===== スプレッドシート =====
 API_KEY = "AIzaSyDCjTGv12ObNBqeNkgW_0I6IFUxwyOj3wI"
-SHEET_ID = "1eBsL99sUIF9RdihQ5g1QjPPj12pZXPQG"
+SHEET_ID = "1WOJNUXCceZ4MCs9wlTRS3_Kp4UccWy1xxSE5ehMrSxg"
 SHEET_NAME = "2026年度_時間割"
 
 DATA_FILE = "users.json"
