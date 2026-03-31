@@ -27,12 +27,34 @@ SCHOOLS = {
     }
 }
 
+#前に
+day_map = {
+    "月": "月曜日",
+    "火": "火曜日",
+    "水": "水曜日",
+    "木": "木曜日",
+    "金": "金曜日",
+}
+
+school_map = {
+    "石山高校": "石山"
+}
+
+day = day_map.get(day, day)
+school = school_map.get(school, school)
+
 # ===== スプレッドシート取得 =====
 def get_timetable(school, cls, day):
     url = f"https://sheets.googleapis.com/v4/spreadsheets/{SHEET_ID}/values/{SHEET_NAME}?key={API_KEY}"
     
     res = requests.get(url)
     data = res.json()
+
+    print("=== 全データ ===")
+    for row in rows[1:]:
+        print(row)
+
+    print("検索条件:", school, cls, day)
 
     rows = data.get("values", [])
     if not rows:
@@ -44,9 +66,9 @@ def get_timetable(school, cls, day):
         row_dict = dict(zip(header, row))
 
         if (
-            row_dict.get("school") == school and
-            row_dict.get("class") == cls and
-            row_dict.get("day") == day
+            str(row_dict.get("school","")).strip() == school.strip() and
+            str(row_dict.get("class","")).strip() == cls.strip() and
+            str(row_dict.get("day","")).strip() == day.strip()
         ):
             return [row_dict.get(str(i), "") for i in range(1, 8)]
 
@@ -132,18 +154,15 @@ def handle_message(event):
     if user_id in users and "school" in users[user_id]:
         school = users[user_id]["school"]
         if text in SCHOOLS[school]:
-            users[user_id]["grade"] = text
             save_users(users)
             flex = button_flex("クラスを選択", SCHOOLS[school][text])
             line_bot_api.reply_message(event.reply_token, FlexSendMessage("クラス", flex))
             return
 
     # クラス
-    if user_id in users and "grade" in users[user_id]:
+    if user_id in users and "school" in users[user_id]:
         school = users[user_id]["school"]
-        grade = users[user_id]["grade"]
-
-        if text in SCHOOLS[school][grade]:
+        if text in SCHOOLS[school].get("2年", []) or text in SCHOOLS[school].get("1年", []) or text in SCHOOLS[school].get("3年", []):
             users[user_id]["class"] = text
             save_users(users)
             line_bot_api.reply_message(
@@ -159,6 +178,16 @@ def handle_message(event):
 
         school = users[user_id]["school"]
         cls = users[user_id]["class"]
+
+        day_map = {
+            "月": "月曜日",
+            "火": "火曜日",
+            "水": "水曜日",
+            "木": "木曜日",
+            "金": "金曜日",
+        }
+
+        day = day_map[text]
 
         lessons = get_timetable(school, cls, text)
 
