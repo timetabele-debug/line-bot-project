@@ -26,7 +26,7 @@ SCHOOLS = {
 
 # ===== 正規化 =====
 def normalize(text):
-    return str(text).strip().replace("　","").replace("−","-")
+    return str(text).strip().replace("　","").replace(" ","").replace("−","-").replace("ー","-")
 
 # ===== 時間割取得 =====
 def get_timetable(school, cls, day):
@@ -42,7 +42,7 @@ def get_timetable(school, cls, day):
         print("データなし")
         return None
 
-    header = rows[0]
+    header = [h.strip() for h in rows[0]]
 
     # 曜日変換
     day_map = {
@@ -68,9 +68,9 @@ def get_timetable(school, cls, day):
         print("検索:", school, cls, day)
 
         if (
-            normalize(row_dict.get("school")) == normalize(school) and
-            normalize(row_dict.get("class")) == normalize(cls) and
-            normalize(row_dict.get("day")) == normalize(day)
+            normalize(row_dict.get("school","")) == normalize(school) and
+            normalize(row_dict.get("class","")) == normalize(cls) and
+            normalize(row_dict.get("day","")) == normalize(day)
         ):
             print("★一致")
             return [row_dict.get(str(i), "") for i in range(1, 8)]
@@ -178,6 +178,17 @@ def handle_message(event):
 
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg.strip()))
         return
+
+print("比較:",
+    normalize(row_dict.get("school","")),
+    normalize(row_dict.get("class","")),
+    normalize(row_dict.get("day",""))
+)
+print("入力:",
+    normalize(school),
+    normalize(cls),
+    normalize(day)
+)
 
 # ===== 起動 =====
 if __name__ == "__main__":
