@@ -1,214 +1,56 @@
-from flask import Flask, request, abort
+from flask import Flask, request
 from linebot import LineBotApi, WebhookHandler
-from linebot.exceptions import InvalidSignatureError
-from linebot.models import (
-    MessageEvent, TextMessage, TextSendMessage, FlexSendMessage
-)
-import json, os
+from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendMessage
+import json, os, requests
 
+# ===== LINE設定 =====
 CHANNEL_ACCESS_TOKEN = "v9oIjz8ugck0dRBpZ43O4MY9El4mrqwfK6XgmxSBAbIDr8DH99PLYlnBp6Ml4XqYlPaTyrMkrpx9osdAt3PPra42Zu0q6C5WhjRNxqKcvZdcjS4vT1uMMJH2/1XHtKy5wQT/J9YVuxeK4O7+9JP54QdB04t89/1O/w1cDnyilFU="
 CHANNEL_SECRET = "e5fd1ba729102842beaa4f76b075c7c8"
+
+# ===== スプレッドシート設定 =====
+API_KEY = "ここにAPIキー"
+SHEET_ID = "1eBsL99sUIF9RdihQ5g1QjPPj12pZXPQG"
+SHEET_NAME = "2026年度_時間割"
 
 DATA_FILE = "users.json"
 
 app = Flask(__name__)
-line_bot_api = LineBotApi("v9oIjz8ugck0dRBpZ43O4MY9El4mrqwfK6XgmxSBAbIDr8DH99PLYlnBp6Ml4XqYlPaTyrMkrpx9osdAt3PPra42Zu0q6C5WhjRNxqKcvZdcjS4vT1uMMJH2/1XHtKy5wQT/J9YVuxeK4O7+9JP54QdB04t89/1O/w1cDnyilFU=")
-handler = WebhookHandler("e5fd1ba729102842beaa4f76b075c7c8")
+line_bot_api = LineBotApi(CHANNEL_ACCESS_TOKEN)
+handler = WebhookHandler(CHANNEL_SECRET)
 
-# ===== データ =====
+# ===== 学校データ =====
 SCHOOLS = {
     "石山高校":{
         "1年":["1-1","1-2","1-3","1-4","1-5","1-6","1-7","1-8","1-9"],
-        "2年":["2-1","2-2","2-3","2-4","2-5","2-6","2-7","2-8","2-9"]
-    },
-    "膳所高校":{
-        "2年":["2-3"]
-    },
-    "守山高校":{
-        "2年":["2-4"]
-    },
-    "大津高校":{
-        "2年":["2-1"]
-    },
-    "東京都立大学":{
-        "1年":["1-56"],
-        "2年":["2-56"]
+        "2年":["2-1","2-2","2-3","2-4","2-5","2-6","2-7","2-8","2-9"],
+        "3年":{"3-1","3-2","3-3","3-4","3-5","3-6","3-7","3-8","3-9"}
     }
 }
 
-TIMETABLE = {
-    "石山高校": {
-        "1-1": {
-            "月": ["体育","生物基礎","言語文化","化学基礎","数学ⅠⅡ","コミⅠ","‼ビブス‼"],
-            "火": ["公共","数学A","現国","コミⅠ","歴総","保健","数学ⅠⅡ"],
-            "水": ["音楽/美術","音楽/美術","論表Ⅰ","歴総","言語文化","数学ⅠⅡ"],
-            "木": ["生物基礎","体育","数学ⅠⅡ","現国","言語文化","数学A","LHR","‼ビブス‼"],
-            "金": ["化学基礎","論表Ⅰ","家庭","家庭","コミⅠ","公共"]
-        },
-        "1-2":{ 
-            "月":["体育","数学ⅠⅡ","公共","歴総","現国","コミⅠ","‼ビブス‼"], 
-            "火":["数学A","論表Ⅰ","コミⅠ","言語文化","保健","化学基礎","数学ⅠⅡ"], 
-            "水":["公共","生物基礎","音楽/美術","音楽/美術","現国","化学基礎"], 
-            "木":["言語文化","体育","コミⅠ","数学ⅠⅡ","家庭","家庭","LHR","‼ビブス‼"], 
-            "金":["数学ⅠⅡ","言語文化","数学A","生物基礎","論表Ⅰ","歴総"] 
-        }, 
-        "1-3":{ 
-            "月":["現国","体育","論表Ⅰ","生物基礎","言語文化","歴総","‼︎ビブス‼︎"], 
-            "火":["音楽/書道","音楽/書道","化学基礎","数学ⅠⅡ","公共","言語文化","コミⅠ"], 
-            "水":["コミⅠ","数学ⅠⅡ","家庭","家庭","数学A","論表Ⅰ"], 
-            "木":["体育","コミⅠ","言語文化","数学ⅠⅡ","化学基礎","現国","LHR","‼︎ビブス‼︎"], 
-            "金":["数学ⅠⅡ","保健","生物基礎","歴総","公共","数学A"] 
-        }, 
-        "1-4":{ 
-            "月":["数学A","体育","歴総","言語文化","数学ⅠⅡ","現国","‼︎ビブス‼︎"], 
-            "火":["数学ⅠⅡ","保健","生物基礎","公共","数学A","コミⅠ","言語文化"], 
-            "水":["言語文化","コミⅠ","歴総","論表Ⅰ","化学基礎","数学ⅠⅡ"], 
-            "木":["体育","数学ⅠⅡ","家庭","家庭","公共","生物基礎","LHR","‼︎ビブス‼︎"], 
-            "金":["現国","論表Ⅰ","音楽/書道","音楽/書道","化学基礎","コミⅠ"] 
-        }, 
-        "1-5":{
-            "月":["言語文化","論表Ⅰ","現国","数学ⅠⅡ","数学A","公共"], 
-            "火":["コミⅠ","言語文化","家庭","家庭","生物基礎","保健","歴総"], 
-            "水":["化学基礎","数学ⅠⅡ","公共","論表Ⅰ","体育","数学A","‼︎ビブス‼︎"], 
-            "木":["音楽","音楽","歴総","化学基礎","数学ⅠⅡ","コミⅠ","LHR"], 
-            "金":["体育","現国","言語文化","コミⅠ","数学ⅠⅡ","生物基礎","‼︎ビブス‼︎"] 
-        },
-        "1-6":{
-            "月":["歴総","言語文化","論表Ⅰ","数学A","生物基礎","数学ⅠⅡ"],
-            "火":["公共","コミⅠ","保健","数学ⅠⅡ","家庭","家庭","現国"],
-            "水":["数学A","言語文化","数学ⅠⅡ","生物基礎","体育","コミⅠ","‼ビブス‼"],
-            "木":["美術/書道","美術/書道","化学基礎","コミⅠ","歴総","言語文化","LHR"],
-            "金":["体育","公共","論表Ⅰ","数学ⅠⅡ","現国","化学基礎","‼ビブス‼"]
-        },
-        "1-7":{
-            "月":["数学A","言語文化","家庭","家庭","化学基礎","数学ⅠⅡ"],
-            "火":["現国","数学ⅠⅡ","生物基礎","公共","コミⅠ","言語文化","論表Ⅰ"],
-            "水":["歴総","現国","化学基礎","体育","数学ⅠⅡ","言語文化","‼ビブス‼"],
-            "木":["コミⅠ","歴総","音楽","音楽","生物基礎","数学A","LHR"],
-            "金":["公共","体育","論表Ⅰ","保健","数学ⅠⅡ","コミⅠ","‼ビブス‼"]
-        },
-        "1-8":{
-            "月":["数学ⅠⅡ","論表Ⅰ","化学基礎","コミⅠ","家庭","家庭"],
-            "火":["数学A","コミⅠ","公共","言語文化","生物基礎","現国","数学ⅠⅡ"],
-            "水":["コミⅠ","保健","言語文化","体育","論表Ⅰ","歴総","‼ビブス‼"],
-            "木":["現国","数学ⅠⅡ","美術/書道","美術/書道","数学A","言語文化","LHR"],
-            "金":["歴総","体育","化学基礎","公共","生物基礎","数学ⅠⅡ","‼ビブス‼"]
-        },
-        "1-9":{
-            "月":["論表Ⅰ","数学Ⅰ","体育","伊和演","コミⅠ","現国","‼ビブス‼"],
-            "火":["科人","コミⅠ","公共","論表Ⅰ","実視","実視","保健"],
-            "水":["体育","数学Ⅰ","言語文化","聴音","合唱奏","合唱奏","‼ビブス‼"],
-            "木":["数学Ⅰ","コミⅠ","実聴","実聴","音理","科人","LHR"],
-            "金":["言語文化","音理","公共","現国","家庭","家庭"]
-        },
-        "2-1":{ 
-            "月":["保健","コミⅡ","物理","数学BC","化学","数学ⅡⅢ"], 
-            "火":["古典/地理/情報","数学ⅡⅢ","体育","地理/情報/古典","コミⅡ","コミⅡR","総合","‼ビブス‼"],
-            "水":["数学ⅡⅢ","論文国","論表Ⅱ","物理","化学","情報/古典/地理"], 
-            "木":["コミⅡ","論表Ⅱ","地理/情報/古典","物理","古典/地理/情報","数学BC","LHR"], 
-            "金":["物理","数学ⅡⅢ","体育","情報/古典/地理","論文国","論表ⅡC","‼ビブス‼"] 
-        }, 
-        "2-2":{ 
-            "月":["数学ⅡⅢ","論表Ⅱ","化学","物理","論文国","論表ⅡC"], 
-            "火":["古典/地理/情報","体育","数学ⅡⅢ","地理/情報/古典","物理","コミⅡ","総合"], 
-            "水":["物理","化学","数学BC","数学ⅡⅢ","論文国","情報/古典/地理"], 
-            "木":["論表Ⅱ","物理","地理/情報/古典","コミⅡ","古典/地理/情報","コミⅡR","LHR"], 
-            "金":["保健","数学BC","コミⅡ","情報/古典/地理","体育","数学ⅡⅢ","‼ビブス‼"] 
-        },
-        "2-3":{ 
-            "月":["地理","コミⅡ","数学ⅡⅢ","コミⅡR","論文国","論表Ⅱ"], 
-            "火":["数学BC","物理/生物","コミⅡ","数学ⅡⅢ","論文国","保健","総合"], 
-            "水":["化学","体育","コミⅡ","論表ⅡC","情報","物理","‼ビブス‼"], 
-            "木":["数学BC","論表Ⅱ","物理/生物","古典","数IIⅢ","地理","LHR"], 
-            "金":["物理","情報","古典","体育","化学","数IIⅢ","‼︎ビブス‼︎"] 
-        }, 
-        "2-4":{ 
-            "月":["コミⅡR","地理","数BC","古典","論表ⅡC","論表Ⅱ"], 
-            "火":["化学","体育","コミⅡ","保健","数IIⅢ","物理","総合","‼︎ビブス‼︎"], 
-            "水":["情報","コミⅡ","生物","地理","数IIⅢ","数BC"], 
-            "木":["数学ⅡⅢ","物理","論表Ⅱ","生物","論文国","古典","LHR"], 
-            "金":["論文国","コミⅡ","情報","数学ⅡⅢ","体育","化学","‼︎ビブス‼︎"] 
-        }, 
-        "2-5":{ 
-            "月":["保健","数学B","論表Ⅱ","論表ⅡC","世界史","コミⅡR"], 
-            "火":["数学ⅡC","コミⅡ","地理","古典","日本史","地学基礎","総合","‼シス単‼"], 
-            "水":["論文国","体育","情報","古典","コミⅡ","数学ⅡC","‼︎ビブス,げんたん,こたん‼︎"], 
-            "木":["地学基礎","論表Ⅱ","古典","日本史","数学B","地理","LHR","‼ビンテージ‼"], 
-            "金":["コミⅡ","数学ⅡC","論文国","体育","情報","世界史","‼︎ビブス‼︎"] 
-        }, 
-        "2-6":{ 
-            "月":["古典","保健","数学B","論表Ⅱ","日本史","地理"], 
-            "火":["数学ⅡC","コミⅡ","情報","地学","世界史","論文国","総合","‼げんたん,シス単‼"], 
-            "水":["コミⅡ","体育","数学ⅡC","日本史","数学B","古典","‼ビブス‼"], 
-            "木":["地理","論文国","数学ⅡC","情報","コミⅡR","論表Ⅱ","LHR","‼ビンテージ‼"], 
-            "金":["地学","論表ⅡC","古典","体育","世界史","コミⅡ","‼こたん‼"] 
-        },
-        "2-7":{ 
-            "月":["保健","古典","地学基礎","論文国","論表Ⅱ","数学B"], 
-            "火":["コミⅡ","世界史","体育","地理","情報","日本史","総合","‼︎ビブス‼︎"], 
-            "水":["地学基礎","世界史","古典","コミⅡ","数学ⅡC","論表ⅡC"], 
-            "木":["コミⅡR","情報","地理","論表Ⅱ","コミⅡ","数学ⅡC","LHR"], 
-            "金":["日本史","数学B","体育","数学ⅡC","古典","論文国","‼︎ビブス‼︎"] 
-        }, 
-        "2-8":{ 
-            "月":["日本史","地学基礎","古典","数学ⅡC","論表Ⅱ","世界史"], 
-            "火":["コミⅡR","情報","体育","コミⅡ","論文国","地理","総合","‼︎ビブス‼︎"], 
-            "水":["数学B","古典","日本史","数学ⅡC","保健","コミⅡ"], 
-            "木":["論表Ⅱ","数学ⅡC","論文国","数学B","世界史","情報","LHR"], 
-            "金":["コミⅡ","地理","体育","論表ⅡC","古典","地学基礎","‼︎ビブス‼︎"] 
-        }, 
-        "2-9":{ 
-            "月":["古典","論表Ⅱ","音史","生物基礎","数学Ⅱ/重唱奏","音理"], 
-            "火":["論文国","数学ⅡA/音理演","実視","実視","コミⅡ","地理","総合"], 
-            "水":["体育","情報","数学ⅡA/聴音","保健","合唱奏","合唱奏","‼︎ビブス‼︎"], 
-            "木":["論表Ⅱ","論文国","体育","演奏","コミⅡ","古典","LHR","‼︎ビブス‼︎"], 
-            "金":["情報","地理","生物基礎","コミⅡ","実聴","実聴"] 
-        }
-    },
-    "膳所高校":{
-        "2-3":{
-            "月":["英Ⅱ","古典","体Ⅱ","MB","SS物","G"],
-            "火":["英表2","M2","古典","SS化","探究","保2","現文"],
-            "水":["SS物","SS化","G","公共","MB","英Ⅱ"],
-            "木":["M2","現文","体Ⅱ","古典","SS化","英表2","LHR"],
-            "金":["MB","SS物","英Ⅱ","公共","SS化","M2"]
-        }
-    },
-    "守山高校":{
-        "2-4":{
-            "月":["探国Ⅰ","数学BC","数学ⅡC","情報","英Ⅱ","物理"],
-            "火":["古究","化学","体育","物理/生物","論表","地理総","総探","‼ビブス‼"],
-            "水":["数学ⅡC","保健","英Ⅱ","数学BC","地理総","情報"],
-            "木":["数学BC","論表","物理/生物","体育","古究","数学ⅡC","LHR","‼ビブス‼"],
-            "金":["地理総","化学","英Ⅱ","探国Ⅰ","物理","数学ⅡC"]
-        }
-    },
-    "大津高校":{
-        "2-1":{
-            "月":["論理国語","COMⅡ","保健","古典","数学Ⅱ","数学C"],
-            "火":["物理/生物","体育","数学Ⅱ","生物/物理","COMⅡ","地理総合","‼ビブス‼"],
-            "水":["論理国語","数学Ⅱ","物理/生物","数学B","論表Ⅱ","化学","総合"],
-            "木":["化学","論表","数学B","体育","物理/生物","COMⅡ","LHR","‼ビブス‼"],
-            "金":["COMⅡ","数学Ⅱ","古典","生物/物理","地理総合","物理/生物"]
-        }
-    },
-    "東京都立大学":{
-        "1-56":{
-            "月":["1","2","3","4","博物館展示論 1-210"],
-            "火":["中国語402a","PracticalEnglishⅡ","公共経営論","都市社会学入門"],
-            "水":["SS物","観光環境地図学","都市地域経済論","都市コミュニティ論"],
-            "木":["AcademicEnglishⅡ","中国語402b"],
-            "金":["1週間お疲れ様です"]
-        },
-        "2-56":{
-            "月":["なし","なし","中国語Ⅱa(2)","なし","都市社会調査法(2)","なし"],
-            "火":["なし","都市と産業(2)","生物学概説ⅠA(2)","なし","政策過程論(2)","なし"],
-            "水":["なし","なし","行政法Ⅰ(2)","都市政策科学の現場(2)","自然史博物館学(2)","なし"],
-            "木":["なし","なし","社会保障論(2)","科学史A(2)","なし","なし"],
-            "金":["PEⅢ","地方自治論(2)","なし","なし","なし","なし"]
-        }
-    }
-}
+# ===== スプレッドシート取得 =====
+def get_timetable(school, cls, day):
+    url = f"https://sheets.googleapis.com/v4/spreadsheets/{SHEET_ID}/values/{SHEET_NAME}?key={API_KEY}"
+    
+    res = requests.get(url)
+    data = res.json()
+
+    rows = data.get("values", [])
+    if not rows:
+        return None
+
+    header = rows[0]
+
+    for row in rows[1:]:
+        row_dict = dict(zip(header, row))
+
+        if (
+            row_dict.get("school") == school and
+            row_dict.get("class") == cls and
+            row_dict.get("day") == day
+        ):
+            return [row_dict.get(str(i), "") for i in range(1, 8)]
+
+    return None
 
 # ===== JSON操作 =====
 def load_users():
@@ -221,7 +63,7 @@ def save_users(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-# ===== Flex生成 =====
+# ===== Flex =====
 def button_flex(title, buttons):
     return {
         "type": "bubble",
@@ -245,16 +87,15 @@ def button_flex(title, buttons):
 # ===== Webhook =====
 @app.route("/callback", methods=["POST"])
 def callback():
-    signature = request.headers.get("X-Line-Signature")
     body = request.get_data(as_text=True)
+    signature = request.headers.get("X-Line-Signature")
 
     try:
         handler.handle(body, signature)
     except Exception as e:
         print(e)
 
-    return "OK", 200
-
+    return "OK"
 
 # ===== メッセージ処理 =====
 @handler.add(MessageEvent, message=TextMessage)
@@ -263,106 +104,76 @@ def handle_message(event):
     user_id = event.source.user_id
     users = load_users()
 
-    # --- 時間割 ---
+    # 時間割
     if text == "時間割":
-        if (
-            user_id not in users
-            or "school" not in users[user_id]
-            or "class" not in users[user_id]
-        ):
-            return  # ← 何も返さない
+        if user_id not in users:
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="先に個人情報登録してください"))
+            return
 
         flex = button_flex("曜日を選択", ["月", "火", "水", "木", "金"])
-        line_bot_api.reply_message(
-            event.reply_token,
-            FlexSendMessage("曜日選択", flex)
-        )
-        return
-    
-    # --- 個人情報登録 ---
-    if text == "個人情報登録":
-        flex = button_flex("学校を選択", list(SCHOOLS.keys()))
-        line_bot_api.reply_message(
-            event.reply_token,
-            FlexSendMessage("学校選択", flex)
-        )
+        line_bot_api.reply_message(event.reply_token, FlexSendMessage("曜日", flex))
         return
 
-    # 学校選択
+    # 登録
+    if text == "個人情報登録":
+        flex = button_flex("学校を選択", list(SCHOOLS.keys()))
+        line_bot_api.reply_message(event.reply_token, FlexSendMessage("学校", flex))
+        return
+
+    # 学校
     if text in SCHOOLS:
         users[user_id] = {"school": text}
         save_users(users)
         flex = button_flex("学年を選択", list(SCHOOLS[text].keys()))
-        line_bot_api.reply_message(event.reply_token, FlexSendMessage("学年選択", flex))
+        line_bot_api.reply_message(event.reply_token, FlexSendMessage("学年", flex))
         return
 
-    # 学年選択
+    # 学年
     if user_id in users and "school" in users[user_id]:
         school = users[user_id]["school"]
         if text in SCHOOLS[school]:
             users[user_id]["grade"] = text
             save_users(users)
             flex = button_flex("クラスを選択", SCHOOLS[school][text])
-            line_bot_api.reply_message(event.reply_token, FlexSendMessage("クラス選択", flex))
+            line_bot_api.reply_message(event.reply_token, FlexSendMessage("クラス", flex))
             return
 
-    # クラス選択
-    if (
-        user_id in users
-        and "school" in users[user_id]
-        and "grade" in users[user_id]
-    ):
+    # クラス
+    if user_id in users and "grade" in users[user_id]:
         school = users[user_id]["school"]
         grade = users[user_id]["grade"]
 
-        if (
-            school in SCHOOLS
-            and grade in SCHOOLS[school]
-            and text in SCHOOLS[school][grade]
-        ):
+        if text in SCHOOLS[school][grade]:
             users[user_id]["class"] = text
             save_users(users)
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(
-                    text="登録が完了しました。\n「時間割」をご利用ください。"
-                )
+                TextSendMessage(text="登録が完了しました")
             )
             return
 
-    # 曜日選択
-    if text in ["月", "火", "水", "木", "金"]:
+    # 曜日
+    if text in ["月","火","水","木","金"]:
         if user_id not in users or "class" not in users[user_id]:
-            return  # 無言
+            return
 
         school = users[user_id]["school"]
         cls = users[user_id]["class"]
 
-        lessons = (
-            TIMETABLE
-            .get(school, {})
-            .get(cls, {})
-            .get(text)
-        )
+        lessons = get_timetable(school, cls, text)
 
         if not lessons:
-            return  # 無言
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="データが見つかりません"))
+            return
 
         msg = f"{cls} {text}曜\n"
         for i, s in enumerate(lessons, 1):
             msg += f"{i}限：{s}\n"
 
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text=msg.strip())
-        )
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg.strip()))
         return
 
-
-
 # ===== 起動 =====
-import os
-
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     app.run(host="0.0.0.0", port=port)
