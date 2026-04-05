@@ -8,7 +8,7 @@ CHANNEL_ACCESS_TOKEN = "v9oIjz8ugck0dRBpZ43O4MY9El4mrqwfK6XgmxSBAbIDr8DH99PLYlnB
 CHANNEL_SECRET = "e5fd1ba729102842beaa4f76b075c7c8"
 
 # ===== スプレッドシート =====
-API_KEY = "AIzaSyAsS9vKV43VhQ0VLp1xgIMwLZI9y53Gn3Q"
+API_KEY = "AIzaSyAGc8xGRABHz4hoZXctjAkw3JLv2s_NPXk"
 SHEET_ID = "1WOJNUXCceZ4MCs9wlTRS3_Kp4UccWy1xxSE5ehMrSxg"
 SHEET_NAME = "2026年度_時間割"
 
@@ -30,7 +30,7 @@ def normalize(text):
 
 # ===== 時間割取得 =====
 def get_timetable(school, cls, day):
-    url = f"https://sheets.googleapis.com/v4/spreadsheets/{SHEET_ID}/values/{SHEET_NAME}!A1:Z1000?key={API_KEY}"
+    url = f"https://sheets.googleapis.com/v4/spreadsheets/{SHEET_ID}/values/'{SHEET_NAME}'!A1:Z1000?key={API_KEY}"
     
     res = requests.get(url)
     data = res.json()
