@@ -62,6 +62,18 @@ def get_timetable(school, cls, day):
 
     for row in rows[1:]:
         row_dict = dict(zip(header, row))
+        
+        print("比較:",
+        normalize(row_dict.get("school","")),
+        normalize(row_dict.get("class","")),
+        normalize(row_dict.get("day",""))
+        )
+        print("入力:",
+        normalize(school),
+        normalize(cls),
+        normalize(day)
+        )
+
 
         print("----")
         print("シート:", row_dict)
@@ -161,6 +173,10 @@ def handle_message(event):
     # 曜日
     if text in ["月","火","水","木","金"]:
         if user_id not in users:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="先に個人情報登録をしてください")
+            )
             return
 
         school = users[user_id]["school"]
@@ -178,17 +194,6 @@ def handle_message(event):
 
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg.strip()))
         return
-
-print("比較:",
-    normalize(row_dict.get("school","")),
-    normalize(row_dict.get("class","")),
-    normalize(row_dict.get("day",""))
-)
-print("入力:",
-    normalize(school),
-    normalize(cls),
-    normalize(day)
-)
 
 # ===== 起動 =====
 if __name__ == "__main__":
