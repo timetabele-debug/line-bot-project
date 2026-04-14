@@ -111,12 +111,16 @@ def get_events():
     for row in rows[1:]:
         if len(row) < 2:
             continue
-
+            
         date_str = row[0].strip()
         event = row[1].strip()
-
+        
+        parts = date_str.replace("/", "-").split("-")
         try:
-            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+            y = int(parts[0])
+            m = int(parts[1])
+            d = int(parts[2])
+            date_obj = datetime(y, m, d)
             events.append((date_obj, event))
         except Exception as e:
             print("date parse error:", e)
