@@ -94,9 +94,9 @@ def get_timetable(school, cls, day):
     print("一致なし")
     return None
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
-def get_calendar(date):
+def get_events():
     url = f"https://sheets.googleapis.com/v4/spreadsheets/{CALENDAR_SHEET_ID}/values/{CALENDAR_SHEET_NAME}!A1:B1000?key={API_KEY}"
     
     res = requests.get(url)
@@ -104,19 +104,23 @@ def get_calendar(date):
 
     rows = data.get("values", [])
     if not rows:
-        return None
+        return []
 
+    events = []
     for row in rows[1:]:
         if len(row) < 2:
             continue
 
-        sheet_date = row[0].strip()
+        date_str = row[0].strip()
         event = row[1].strip()
 
-        if sheet_date == date:
-            return event
+        try:
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+            events.append((date_obj, event))
+        except:
+            continue
 
-    return None
+    return events
 
 # ===== JSON =====
 def load_users():
@@ -225,24 +229,57 @@ def handle_message(event):
     
     # 予定
     if text == "予定":
-        today = datetime.now().strftime("%Y-%m-%d")
+        flex = button_flex("予定メニュー", ["今日","明日","今週","今月"])
+        line_bot_api.reply_message(event.reply_token, FlexSendMessage("予定", flex))
+        return
 
-        event_data = get_calendar(today)
+        if text in ["今日","明日","今週","今月"]:
+        events = get_events()
+        today = datetime.now().date()
 
-        if not event_data:
+        result = []
+
+        if text == "今日":
+            for d, e in events:
+                if d.date() == today:
+                    result.append((d, e))
+
+        elif text == "明日":
+            tomorrow = today + timedelta(days=1)
+            for d, e in events:
+                if d.date() == tomorrow:
+                    result.append((d, e))
+
+        elif text == "今週":
+            start = today - timedelta(days=today.weekday())  # 月曜
+            end = start + timedelta(days=6)
+
+            for d, e in events:
+                if start <= d.date() <= end:
+                    result.append((d, e))
+
+        elif text == "今月":
+            for d, e in events:
+                if d.year == today.year and d.month == today.month:
+                    result.append((d, e))
+
+        if not result:
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text="特に予定なし")
+                TextSendMessage(text="予定なし")
             )
             return
 
-        msg = f"{today} の予定\n{event_data}"
+        msg = f"【{text}の予定】\n"
+        for d, e in sorted(result):
+            msg += f"{d.strftime('%m/%d')}：{e}\n"
 
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text=msg)
+            TextSendMessage(text=msg.strip())
         )
         return
+
 
 # ===== 起動 =====
 if __name__ == "__main__":
