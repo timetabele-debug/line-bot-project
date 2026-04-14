@@ -233,7 +233,8 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, FlexSendMessage("予定", flex))
         return
 
-        if text in ["今日","明日","今週","今月"]:
+    # 分岐
+    if text in ["今日","明日","今週","今月"]:
         events = get_events()
         today = datetime.now().date()
 
@@ -251,7 +252,7 @@ def handle_message(event):
                     result.append((d, e))
 
         elif text == "今週":
-            start = today - timedelta(days=today.weekday())  # 月曜
+            start = today - timedelta(days=today.weekday())
             end = start + timedelta(days=6)
 
             for d, e in events:
@@ -279,6 +280,9 @@ def handle_message(event):
             TextSendMessage(text=msg.strip())
         )
         return
+
+except Exception as e:
+    print("ERROR:", e)
 
 
 # ===== 起動 =====
