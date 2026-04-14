@@ -14,6 +14,10 @@ SHEET_NAME = "timetable2026"
 
 DATA_FILE = "users.json"
 
+# ===== カレンダー =====
+CALENDAR_SHEET_ID = "1zDO4NnFPvgbcVRhYCMYNYsrPoEAzWQ0erD-RNxK4Qhg"
+CALENDAR_SHEET_NAME = "calendar2026"
+
 app = Flask(__name__)
 line_bot_api = LineBotApi(CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(CHANNEL_SECRET)
@@ -21,7 +25,7 @@ handler = WebhookHandler(CHANNEL_SECRET)
 # ===== 学校 =====
 SCHOOLS = {
     "石山高校": ["1-1","1-2","1-3","1-4","1-5","1-6","1-7","1-8","1-9",
-             "2-1","2-2","2-3","2-4","2-5","2-6","2-7","2-8","2-9"]
+             "2-1","2-2","2-3","2-4","2-5","2-6","2-7","2-8","2-9","3-1","3-2","3-3","3-4","3-5","3-6","3-7","3-8","3-9"]
 }
 
 # ===== 正規化 =====
@@ -88,6 +92,30 @@ def get_timetable(school, cls, day):
             return [row_dict.get(str(i), "") for i in range(1, 8)]
 
     print("一致なし")
+    return None
+
+from datetime import datetime
+
+def get_calendar(date):
+    url = f"https://sheets.googleapis.com/v4/spreadsheets/{CALENDAR_SHEET_ID}/values/{CALENDAR_SHEET_NAME}!A1:B1000?key={API_KEY}"
+    
+    res = requests.get(url)
+    data = res.json()
+
+    rows = data.get("values", [])
+    if not rows:
+        return None
+
+    for row in rows[1:]:
+        if len(row) < 2:
+            continue
+
+        sheet_date = row[0].strip()
+        event = row[1].strip()
+
+        if sheet_date == date:
+            return event
+
     return None
 
 # ===== JSON =====
@@ -193,6 +221,27 @@ def handle_message(event):
             msg += f"{i}限：{s}\n"
 
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg.strip()))
+        return
+    
+    # 予定
+    if text == "予定":
+        today = datetime.now().strftime("%Y-%m-%d")
+
+        event_data = get_calendar(today)
+
+        if not event_data:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="特に予定なし")
+            )
+            return
+
+        msg = f"{today} の予定\n{event_data}"
+
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=msg)
+        )
         return
 
 # ===== 起動 =====
