@@ -25,7 +25,8 @@ handler = WebhookHandler(CHANNEL_SECRET)
 # ===== 学校 =====
 SCHOOLS = {
     "石山高校": ["1-1","1-2","1-3","1-4","1-5","1-6","1-7","1-8","1-9",
-             "2-1","2-2","2-3","2-4","2-5","2-6","2-7","2-8","2-9","3-1","3-2","3-3","3-4","3-5","3-6","3-7","3-8","3-9"]
+             "2-1","2-2","2-3","2-4","2-5","2-6","2-7","2-8","2-9",
+             "3-1","3-2","3-3","3-4","3-5","3-6","3-7","3-8","3-9"]
 }
 
 # ===== 正規化 =====
@@ -117,7 +118,8 @@ def get_events():
         try:
             date_obj = datetime.strptime(date_str, "%Y-%m-%d")
             events.append((date_obj, event))
-        except:
+        except Exception as e:
+            print("date parse error:", e)
             continue
 
     return events
@@ -272,7 +274,7 @@ def handle_message(event):
             return
 
         msg = f"【{text}の予定】\n"
-        for d, e in sorted(result):
+        for d, e in sorted(result, key=lambda x: x[0]):
             msg += f"{d.strftime('%m/%d')}：{e}\n"
 
         line_bot_api.reply_message(
@@ -281,8 +283,7 @@ def handle_message(event):
         )
         return
 
-except Exception as e:
-    print("ERROR:", e)
+
 
 
 # ===== 起動 =====
