@@ -225,7 +225,7 @@ def handle_message(event):
 
         data = get_timetable(school, cls, text)
 
-        if not lessons:
+        if not data:
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text="データが見つかりません"))
             return
 
@@ -235,7 +235,7 @@ def handle_message(event):
             msg += f"{i}限：{s}\n"
             
         if data["note"]:
-            msg += f"\n{data['note']}"
+            msg += f"\n\n{data['note']}"
 
 
 
