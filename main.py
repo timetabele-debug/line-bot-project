@@ -90,7 +90,10 @@ def get_timetable(school, cls, day):
             normalize(row_dict.get("day","")) == normalize(day)
         ):
             print("★一致")
-            return [row_dict.get(str(i), "") for i in range(1, 8)]
+            return {
+                "lessons": [row_dict.get(str(i), "") for i in range(1, 8)],
+                "note": row_dict.get("note", "")
+            }
 
     print("一致なし")
     return None
@@ -220,15 +223,21 @@ def handle_message(event):
         school = users[user_id]["school"]
         cls = users[user_id]["class"]
 
-        lessons = get_timetable(school, cls, text)
+        data = get_timetable(school, cls, text)
 
         if not lessons:
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text="データが見つかりません"))
             return
 
         msg = f"{cls} {text}曜\n"
-        for i, s in enumerate(lessons, 1):
+        
+        for i, s in enumerate(data["lessons"], 1):
             msg += f"{i}限：{s}\n"
+            
+        if data["note"]:
+            msg += f"\n{data['note']}"
+
+
 
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg.strip()))
         return
